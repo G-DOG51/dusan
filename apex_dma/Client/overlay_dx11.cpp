@@ -44,14 +44,18 @@ static ID3D11DeviceContext*     g_pd3dDeviceContext = nullptr;
 static IDXGISwapChain*          g_pSwapChain = nullptr;
 static ID3D11RenderTargetView*  g_mainRenderTargetView = nullptr;
 static HWND                     g_hwnd = nullptr;
+static HWND                     g_gameHwnd = nullptr;
 static bool                     g_showMenu = true;
-static int                      g_menuWidth = 650;
-static int                      g_menuHeight = 700;
+static int                      g_windowWidth = 0;
+static int                      g_windowHeight = 0;
+static int                      g_windowX = 0;
+static int                      g_windowY = 0;
 
 static bool CreateDeviceD3D(HWND hWnd);
 static void CleanupDeviceD3D();
 static void CreateRenderTarget();
 static void CleanupRenderTarget();
+static void UpdateWindowData();
 static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 static bool CreateDeviceD3D(HWND hWnd)
@@ -118,6 +122,12 @@ static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     switch (msg)
     {
+    case WM_CREATE:
+    {
+        MARGINS margin = { -1, -1, -1, -1 };
+        DwmExtendFrameIntoClientArea(hWnd, &margin);
+        return 0;
+    }
     case WM_SIZE:
         if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
         {
@@ -135,6 +145,43 @@ static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
     return DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
+static void UpdateWindowData()
+{
+    if (!g_gameHwnd || !IsWindow(g_gameHwnd))
+    {
+        g_gameHwnd = FindWindowA("Respawn001", nullptr);
+        if (!g_gameHwnd)
+            return;
+    }
+
+    RECT rect;
+    if (!GetClientRect(g_gameHwnd, &rect))
+        return;
+
+    POINT pt = { rect.left, rect.top };
+    ClientToScreen(g_gameHwnd, &pt);
+
+    int w = rect.right - rect.left;
+    int h = rect.bottom - rect.top;
+
+    if (w != g_windowWidth || h != g_windowHeight || pt.x != g_windowX || pt.y != g_windowY)
+    {
+        g_windowWidth = w;
+        g_windowHeight = h;
+        g_windowX = pt.x;
+        g_windowY = pt.y;
+        SetWindowPos(g_hwnd, HWND_TOPMOST, g_windowX, g_windowY, g_windowWidth, g_windowHeight, SWP_NOACTIVATE);
+    }
+
+    // Click-through toggle (matches reference OS-ImGui_External.cpp UpdateWindowData)
+    // When ImGui wants mouse input, remove WS_EX_LAYERED so we can interact
+    // Otherwise add WS_EX_LAYERED so clicks pass through to the game
+    if (g_showMenu && ImGui::GetIO().WantCaptureMouse)
+        SetWindowLong(g_hwnd, GWL_EXSTYLE, GetWindowLong(g_hwnd, GWL_EXSTYLE) & (~WS_EX_LAYERED));
+    else
+        SetWindowLong(g_hwnd, GWL_EXSTYLE, GetWindowLong(g_hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
 }
 
 // ──────────────────────────────────────
@@ -528,7 +575,7 @@ static void RenderMenu()
 {
     settings_t s = global_settings();
 
-    ImGui::SetNextWindowSize(ImVec2((float)g_menuWidth, (float)g_menuHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(650.0f, 700.0f), ImGuiCond_FirstUseEver);
     ImGui::Begin("Apex DMA - Settings [INSERT to toggle]", &g_showMenu, ImGuiWindowFlags_NoCollapse);
 
     // Status bar
@@ -593,6 +640,30 @@ void start_overlay()
 {
     overlay_t = true;
 
+    // Wait for game window before creating overlay
+    printf("Waiting for game window...\n");
+    while (!g_gameHwnd)
+    {
+        g_gameHwnd = FindWindowA("Respawn001", nullptr);
+        if (!g_gameHwnd)
+            g_gameHwnd = FindWindowA(nullptr, "Apex Legends");
+        if (!g_gameHwnd)
+            Sleep(500);
+        if (!overlay_t)
+            return;
+    }
+    printf("Game window found: 0x%p\n", g_gameHwnd);
+
+    // Get initial game window dimensions
+    RECT gameRect;
+    GetClientRect(g_gameHwnd, &gameRect);
+    POINT pt = { gameRect.left, gameRect.top };
+    ClientToScreen(g_gameHwnd, &pt);
+    g_windowX = pt.x;
+    g_windowY = pt.y;
+    g_windowWidth = gameRect.right - gameRect.left;
+    g_windowHeight = gameRect.bottom - gameRect.top;
+
     WNDCLASSEXW wc = {};
     wc.cbSize = sizeof(WNDCLASSEXW);
     wc.style = CS_CLASSDC;
@@ -601,13 +672,30 @@ void start_overlay()
     wc.lpszClassName = L"ApexDMAOverlay";
     RegisterClassExW(&wc);
 
-    g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"Apex DMA Menu",
-        WS_OVERLAPPEDWINDOW, 100, 100, g_menuWidth, g_menuHeight,
+    // Create transparent topmost overlay window attached over the game
+    // Flags match reference: WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED
+    g_hwnd = CreateWindowExW(
+        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED,
+        wc.lpszClassName, L"Apex DMA Overlay",
+        WS_POPUP,
+        g_windowX, g_windowY, g_windowWidth, g_windowHeight,
         nullptr, nullptr, wc.hInstance, nullptr);
+
+    if (!g_hwnd)
+    {
+        printf("Failed to create overlay window.\n");
+        UnregisterClassW(wc.lpszClassName, wc.hInstance);
+        overlay_t = false;
+        return;
+    }
+
+    // Make the window transparent via layered attributes (matches reference: LWA_ALPHA, alpha=255)
+    SetLayeredWindowAttributes(g_hwnd, RGB(0, 0, 0), 255, LWA_ALPHA);
 
     if (!CreateDeviceD3D(g_hwnd))
     {
         CleanupDeviceD3D();
+        DestroyWindow(g_hwnd);
         UnregisterClassW(wc.lpszClassName, wc.hInstance);
         printf("Failed to create D3D11 device.\n");
         overlay_t = false;
@@ -616,6 +704,9 @@ void start_overlay()
 
     ShowWindow(g_hwnd, SW_SHOWDEFAULT);
     UpdateWindow(g_hwnd);
+
+    // Prevent screen capture of overlay window
+    SetWindowDisplayAffinity(g_hwnd, WDA_NONE);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -642,7 +733,8 @@ void start_overlay()
 
     printf("Overlay started. Press INSERT to toggle menu.\n");
 
-    const float clear_color[4] = { 0.06f, 0.06f, 0.06f, 1.00f };
+    // Transparent clear color so the overlay is see-through
+    const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     MSG msg;
     ZeroMemory(&msg, sizeof(msg));
 
@@ -657,6 +749,16 @@ void start_overlay()
         }
         if (msg.message == WM_QUIT)
             break;
+
+        // Track game window position/size and handle click-through
+        UpdateWindowData();
+
+        // If game window is gone, exit overlay
+        if (!g_gameHwnd || !IsWindow(g_gameHwnd))
+        {
+            printf("Game window lost, closing overlay.\n");
+            break;
+        }
 
         // Toggle menu with INSERT key
         if (GetAsyncKeyState(VK_INSERT) & 1)
@@ -674,7 +776,8 @@ void start_overlay()
         g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-        g_pSwapChain->Present(1, 0);
+        // Present with no vsync for lowest latency
+        g_pSwapChain->Present(0, 0);
     }
 
     ImGui_ImplDX11_Shutdown();
@@ -685,6 +788,8 @@ void start_overlay()
     DestroyWindow(g_hwnd);
     UnregisterClassW(wc.lpszClassName, wc.hInstance);
 
+    g_hwnd = nullptr;
+    g_gameHwnd = nullptr;
     overlay_t = false;
     printf("Overlay closed.\n");
 }

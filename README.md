@@ -1,224 +1,137 @@
-<a name="readme-top"></a>
+# Apex DMA — Windows KM Driver
 
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Issues][issues-shield]][issues-url]
+Windows-native Apex Legends DMA tool using a kernel-mode driver for memory access, with a DirectX 11 + ImGui in-game overlay.
 
-<br />
-<div align="center">
+> **Forked from** [chettoy/apex_dma_kvm_pub](https://github.com/chettoy/apex_dma_kvm_pub) — converted from Linux/KVM + memflow + Rust to a pure Windows C++ project with KM driver.
 
-  <h3 align="center">apex_dma_kvm_pub</h3>
+---
 
-  <p align="center">
-    Apex Legends QEMU/KVM hack
-    <br />
-    <p align="right">(<a href="#readme-bottom">go to bottom</a>)</p>
-    <a href="https://www.unknowncheats.me/forum/apex-legends/406426-kvm-vmread-apex-esp-aimbot.html">UnknownCheats thread</a>
-    ·
-    <a href="https://github.com/Jotalz/apex_dma_kvm_pub/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/Jotalz/apex_dma_kvm_pub/issues">Request Feature</a>
-  </p>
-</div>
+## Features
 
-<br />
+### Aimbot
+- Multiple aim modes (Closest to Crosshair / Closest Distance)
+- Configurable ADS and non-ADS FOV
+- Adjustable smoothing (primary & secondary hotkey)
+- Auto bone selection and nearest bone targeting
+- Headshot distance threshold
+- Recoil control (pitch & yaw compensation)
+- Visibility check toggle
+- Sky grenade auto-aim
+- Trigger bot with per-weapon fire delay
+- Flick bot for single-shot weapons
 
-<img src="Pictures/MainGameView.jpg" alt="Main View" width="960" height="540">
+### Glow / ESP
+- Player glow with visibility-based colors (visible / not visible / knocked)
+- Armor-based color coding (white → blue → purple → red → gold)
+- Configurable inside value, outline size, and glow distance
+- Weapon model glow indicating spectator count
+- Rainbow glow for favorite players
+- Item glow with full loot filter (backpacks, shields, helmets, mags, stocks, barrels, optics, hop-ups, ammo, grenades, weapons)
+- Death box highlighting
 
-<br />
+### Overlay (DirectX 11 + ImGui)
+- Transparent borderless overlay rendered on top of the game window
+- 6-tab settings menu: **Aimbot**, **Visuals**, **Glow**, **Loot Filter**, **Prediction**, **Misc**
+- Toggle with **INSERT** key
+- Click-through when menu is hidden; interactive when menu is shown
+- Spectator count display in status bar
 
+### Movement
+- Auto tap-strafe
+- Auto super-glide (supports 75 / 144 / 240 FPS)
+- Super grapple (auto jump on grapple attach)
 
+### Misc
+- Per-weapon projectile prediction tuning
+- Map radar
+- Firing range dummy targeting
+- TDM team detection
+- Game FPS calculation
+- Save / load settings via config file
 
-## About The Project
-Apex Legends QEMU/KVM hack
+---
 
-UnknownCheats thread: https://www.unknowncheats.me/forum/apex-legends/406426-kvm-vmread-apex-esp-aimbot.html
+## Requirements
 
-Bone IDs reference: https://www.unknowncheats.me/wiki/Apex_Legends_Bones_and_Hitboxes
+- **Windows 10/11** (x64)
+- **Visual Studio 2022+** with C++ Desktop Development workload (MSVC v143+ toolset)
+- **KM driver** loaded and running (the tool communicates via `\\.\eSIGNuTILITES1`)
+- **Apex Legends** (Steam, running on the same machine)
 
-Game version (Steam Only right now): v3.0.51.45
+---
 
-Contact us: https://discord.gg/wsA5HFvWpP
+## Build
 
+1. Open `apex_dma.sln` in Visual Studio.
+2. Select **Release | x64**.
+3. Build the solution (**Ctrl+Shift+B**).
+4. Output: `x64\Release\apex_dma.exe`
 
- **Features**
+No CMake, no Rust, no external package manager required.
 
-1. KrackerCo Fork's no-overlay features.
+---
 
-    > This is the No Client(Windows) Branch, nothing is needed on the windows side.
-    >
-    > ESP Glow color picker for knocked and alive, visable or not visable.
-    >
-    > Item Glow with item filter.
-    >
-    > Weapon Glow with Weapon filter.
-    >
-    > Firing Range dummp targeting debug testing.
-    >
-    > TDM Aimbot/Glow so you only target the other team.
-    >
-    > Left/Right or both mouse buttons to aim.
+## Usage
 
-2. KrackerCo Fork's Client features.
+1. Load the KM driver.
+2. Launch **Apex Legends**.
+3. Run `apex_dma.exe`.
+   - The console will display `Searching for apex process...` then `Apex process found` once detected.
+   - The overlay will print `Waiting for game window...` and attach once the game window is found.
+4. Press **INSERT** to toggle the settings menu on/off.
+5. Configure settings in the overlay tabs or use the terminal menu.
 
-    > ESP Glow color picker for knocked and alive, visable or not visable.
-    >
-    > Item Glow with item filter.
-    >
-    > Weapon Glow with Weapon filter.
-    >
-    > Mini-Map radar*1.
-    >
-    > Full map radar*2.
-    >
-    > Firing Range dummp targeting debug testing.
-    >
-    > TDM Aimbot/Glow so you only target the other team.
-    >
-    > Custom aiming distance.
-    >
-    > Left/Right or both mouse buttons to aim.
-    >
-    > Custom Predition speed and Gravity to use with Headshot Mode*3.
-    >
-    > Save and Load config buttons and at s
+### Hotkeys (defaults)
 
-3. chettoy Fork's features
+| Key | Action |
+|-----|--------|
+| INSERT | Toggle overlay menu |
+| F3 | Quick toggle aimbot on/off |
+| F4 | Quick toggle glow on/off |
+| F8 | Map radar pulse |
 
-    * Inherits all features from KrackerCo's original no-overlay branch.
-    * Includes all features from the original repository's overlay branch. (requires overlay enabled)
-    * Optional glow box to replace player glow (ideal for screenshot prevention or live broadcasting). (requires overlay enabled)
-    * Sky Grenade feature.
-    * Improved target locking.
-    * Advanced targeting options with various bone selection effects.
-    * Calculate and display the game's frame rate.
-    * Aiming Target Indicator (requires overlay enabled)
-    * Config file editing and saving capabilities.
-    * Interactive terminal menu for user-friendly customization.
-    * Dynamic color changes indicate target armor status.
-    * Highlight favorite gamers for quick identification.
-    * Weapon model glow and spectated indicator.
-    * Utilize keyboard backlight to display the number of spectators (requires D-Bus support).
-    * Multilingual support for global accessibility.
+---
 
-
-
-Please star if you like it.
-Look forward to your testing and feedback.
-
-## Update OFFSETS
-1. Make sure you have properly formatted offsets.h and offsets.ini.
-2. Run the python script like this.
-    ```shell
-    py update.py offsets.h offsets.ini
-    ```
-
-## Getting Started
-
-There are really only two steps:
-
-1. Run the game on a windows guest in a kvm virtual machine.
-2. Run the compiled apex_dma program on the Linux host.
-    ```shell
-    sudo ./apex_dma
-    ```
-
-
-
-Additional information:
-
-
-1. Please put the overlay window on the top of the VM screen after start. For example, on top of the looking-glass window.
-2. The window can't get the focus at the same time with the VM screen,  please passthrough some keyboard, mouse or joystick into the VM,  otherwise you can't operate the game.
-3. Press insert key on the overlay window to open the overlay menu.
-4. If you are using a resolution other than 1080p, save the configuration and then modify the `screen_width` and `screen_height` in *settings.toml* and reload the configuration.
-
-
-
-Click on *[Actions](https://github.com/Jotalz/apex_dma_kvm_pub/actions)* to download the auto-built artifacts.
-
-Or compile it yourself.
-
-
-
-## Build from source
-
-**Requirements:**
-
-* C++ toolchain
-* Rust toolchain
-* CMake
-* Git
-
-**Install Rust:**
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-**Install Build Dependencies (Ubuntu):**
-
-```bash
-sudo apt install cmake clang libzstd-dev libglfw3-dev libfreetype6-dev libvulkan-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev wayland-protocols libwayland-dev libxkbcommon-dev
-```
-
-**Build:**
+## Update Offsets
 
 ```shell
-git clone --recurse https://github.com/Jotalz/apex_dma_kvm_pub
-cd apex_dma_kvm_pub
-git submodule update --init --recursive
-cd apex_dma
-bash ./build.sh
+py update.py offsets.h offsets.ini
 ```
 
+---
 
+## Project Structure
 
-## FAQ
+```
+apex_dma.sln
+apex_dma/
+├── apex_dma.vcxproj         # VS project (x64 Release, MSVC v143, C++17)
+├── apex_dma.cpp              # Main entry, thread management
+├── Game.h / Game.cpp         # Entity, weapon, player classes
+├── GameMath.h / Math.cpp     # Vector math, world-to-screen, aim calculation
+├── memory.hpp / memory.cpp   # KM driver memory read/write wrapper
+├── apex_sky.h                # Settings structs, function declarations
+├── apex_sky_stubs.cpp        # C++ stubs (replaced Rust FFI)
+├── offsets.h                 # Game offsets
+├── items.h                   # Item ID enums
+├── vector.h                  # Vector/Matrix types
+├── km/
+│   └── km_driver.h           # Kernel-mode driver communication (header-only)
+└── Client/
+    ├── overlay_dx11.cpp       # DX11 + ImGui overlay & settings menu
+    ├── overlay_dx11.h
+    ├── main.h
+    └── imgui/                 # ImGui v1.91.8 (source included)
+```
 
-1. Many people are using a single GPU
+---
 
-    > If there is only one GPU and the linux host can't be displayed after  starting the VM, you can still use features other than the overlay in  such a case.
-    > You can even turn off the overlay and use it as a no-overlay version.
-    > In this case you will not be able to use only the overlay-dependent  features such as the mini-map radar, health shield bars, GUI menus,  spectator display, etc. But all the original features of the no-overlay  branch such as the player glow, text menu in terminal, and the new sky  grenade will still work.
+## Credits
 
-2. It seems that the client is still reading the values required for the esp stuff. If AC is looking for access on those specific memory locations, then IDK if just removing the implementation of the overlay will work in  terms of preventing detection. Or is AC simply detecting the presence of the overlay/client itself, and banning due to that?
-
-    > First of all, everything related to game state is realized by *access on those specific memory locations*. So we need to use DMA or VM techniques to access memory covertly.
-    > AC detects the overlay client, so we re-implement the overlay outside the VM and remove the client.
-
-3.  I feel the aimbot seem not good as KrackerCo's one
-
-    > We added a few new parameters to aimbot, if you turn auto bone off, turn no-recoil on (it's off by default now) and set the aimbot predict fps to 75, aimbot will run the same as it did before with the same smoothing values.
-    > If you want a natural game feel and normal behavior as if you don't use auto-aiming but dramatically increase the hit rate, instead of wanting to lock bullets at a single point, use auto bone and maybe turn off no-recoil.
-
-
-
-## Acknowledgments
-
-
-* [memflow](https://github.com/memflow/memflow)
-* [tracel-ai/burn](https://github.com/tracel-ai/burn)
-* [TheCruz's Apex Aimbot+ESP](https://www.unknowncheats.me/forum/apex-legends/369786-apex-directx-wallhack-smooth-aimbot-source.html)
-* [h33p/vmread](https://github.com/h33p/vmread)
-* [Y33Tcoder/EzApexDMAAimbot](https://github.com/Y33Tcoder/EzApexDMAAimbot)
-* [MisterY52/apex_dma_kvm_pub](https://github.com/MisterY52/apex_dma_kvm_pub)
-* [KrackerCo/apex_dma_kvm_pub](https://github.com/KrackerCo/apex_dma_kvm_pub)
-* [CasualX/apexdream](https://github.com/CasualX/apexdream)
-* [Nexilist/xap-client](https://github.com/Nexilist/xap-client)
-* [chettoy/apex_dma_kvm_pub](https://github.com/chettoy/apex_dma_kvm_pub)
-
-<a name="readme-bottom"></a>
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/chettoy/apex_dma_kvm_pub.svg?style=for-the-badge
-[contributors-url]: https://github.com/chettoy/apex_dma_kvm_pub/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/Jotalz/apex_dma_kvm_pub.svg?style=for-the-badge
-[forks-url]: https://github.com/Jotalz/apex_dma_kvm_pub/network/members
-[stars-shield]: https://img.shields.io/github/starschettoy/apex_dma_kvm_pub.svg?style=for-the-badge
-[stars-url]: https://github.com/chettoy/apex_dma_kvm_pub/stargazers
-[issues-shield]: https://img.shields.io/github/issues/Jotalz/apex_dma_kvm_pub.svg?style=for-the-badge
-[issues-url]: https://github.com/Jotalz/apex_dma_kvm_pub/issues
-[license-shield]: https://img.shields.io/github/license/Jotalz/apex_dma_kvm_pub.svg?style=for-the-badge
-[license-url]: https://github.com/Jotalz/apex_dma_kvm_pub/blob/main/LICENSE.txt
+- [chettoy/apex_dma_kvm_pub](https://github.com/chettoy/apex_dma_kvm_pub) — original Linux/KVM fork
+- [Jotalz/apex_dma_kvm_pub](https://github.com/Jotalz/apex_dma_kvm_pub) — upstream repository
+- [KrackerCo/apex_dma_kvm_pub](https://github.com/KrackerCo/apex_dma_kvm_pub) — no-overlay and client branches
+- [MisterY52/apex_dma_kvm_pub](https://github.com/MisterY52/apex_dma_kvm_pub) — original project
+- [CasualX/apexdream](https://github.com/CasualX/apexdream) — sky grenade math
+- [Dear ImGui](https://github.com/ocornut/imgui) — GUI framework
+- [memflow](https://github.com/memflow/memflow) — original memory access library (replaced with KM driver)
